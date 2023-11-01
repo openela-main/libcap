@@ -1,0 +1,210 @@
+diff --color -ru a/libcap/cap_proc.c b/libcap/cap_proc.c
+--- a/libcap/cap_proc.c	2021-02-05 06:52:17.000000000 +0100
++++ b/libcap/cap_proc.c	2021-08-27 10:07:37.627519433 +0200
+@@ -689,6 +689,10 @@
+     cap_value_t c;
+     int raising = 0;
+ 
++    if (temp == NULL) {
++	return -1;
++    }
++
+     for (i = 0; i < _LIBCAP_CAPABILITY_U32S; i++) {
+ 	__u32 newI = iab->i[i];
+ 	__u32 oldIP = temp->u[i].flat[CAP_INHERITABLE] |
+diff --color -ru a/libcap/cap_text.c b/libcap/cap_text.c
+--- a/libcap/cap_text.c	2021-02-05 06:52:17.000000000 +0100
++++ b/libcap/cap_text.c	2021-08-27 10:14:45.180389737 +0200
+@@ -160,6 +160,7 @@
+ 	cap_blks = _LINUX_CAPABILITY_U32S_3;
+ 	break;
+     default:
++	cap_free(res);
+ 	errno = EINVAL;
+ 	return NULL;
+     }
+@@ -398,6 +399,9 @@
+ 	for (n = 0; n < cmb; n++) {
+ 	    if (getstateflags(caps, n) == t) {
+ 	        char *this_cap_name = cap_to_name(n);
++		if (this_cap_name == NULL) {
++		    return NULL;
++		}
+ 	        if ((strlen(this_cap_name) + (p - buf)) > CAP_TEXT_SIZE) {
+ 		    cap_free(this_cap_name);
+ 		    errno = ERANGE;
+@@ -450,6 +454,9 @@
+ 	for (n = cmb; n < __CAP_MAXBITS; n++) {
+ 	    if (getstateflags(caps, n) == t) {
+ 		char *this_cap_name = cap_to_name(n);
++		if (this_cap_name == NULL) {
++		    return NULL;
++		}
+ 	        if ((strlen(this_cap_name) + (p - buf)) > CAP_TEXT_SIZE) {
+ 		    cap_free(this_cap_name);
+ 		    errno = ERANGE;
+@@ -549,6 +556,9 @@
+ cap_iab_t cap_iab_from_text(const char *text)
+ {
+     cap_iab_t iab = cap_iab_init();
++    if (iab == NULL) {
++	return iab;
++    }
+     if (text != NULL) {
+ 	unsigned flags;
+ 	for (flags = 0; *text; text++) {
+diff --color -ru a/libcap/_makenames.c b/libcap/_makenames.c
+--- a/libcap/_makenames.c	2021-02-05 06:52:17.000000000 +0100
++++ b/libcap/_makenames.c	2021-08-27 10:02:53.263979868 +0200
+@@ -49,6 +49,10 @@
+ 	    int was = pointers_avail * sizeof(char *);
+ 	    pointers_avail = 2 * list[i].index + 1;
+ 	    pointers = recalloc(pointers, was, pointers_avail * sizeof(char *));
++	    if (pointers == NULL) {
++		perror("unable to continue");
++		exit(1);
++	    }
+         }
+ 	pointers[list[i].index] = list[i].name;
+ 	int n = strlen(list[i].name);
+diff --color -ru a/pam_cap/pam_cap.c b/pam_cap/pam_cap.c
+--- a/pam_cap/pam_cap.c	2021-08-26 09:23:55.560021048 +0200
++++ b/pam_cap/pam_cap.c	2021-08-27 10:17:00.406562672 +0200
+@@ -60,6 +60,9 @@
+     }
+ 
+     *groups = calloc(ngrps, sizeof(char *));
++    if (*groups == NULL) {
++	return -1;
++    }
+     int g_n = 0, i;
+     for (i = 0; i < ngrps; i++) {
+ 	const struct group *g = getgrgid(grps[i]);
+diff --color -ru a/progs/capsh.c b/progs/capsh.c
+--- a/progs/capsh.c	2021-08-26 09:23:55.561021064 +0200
++++ b/progs/capsh.c	2021-08-27 10:43:32.973136965 +0200
+@@ -100,7 +100,16 @@
+     display_prctl_set("Bounding", cap_get_bound);
+     display_prctl_set("Ambient", cap_get_ambient);
+     iab = cap_iab_get_proc();
++    if (iab == NULL) {
++	perror("failed to get IAB for process");
++	exit(1);
++    }
+     text = cap_iab_to_text(iab);
++    if (text == NULL) {
++	perror("failed to obtain text for IAB");
++	cap_free(iab);
++	exit(1);
++    }
+     printf("Current IAB: %s\n", text);
+     cap_free(text);
+     cap_free(iab);
+@@ -402,6 +411,10 @@
+     child = 0;
+ 
+     char *temp_name = cap_to_name(cap_max_bits() - 1);
++    if (temp_name == NULL) {
++	perror("obtaining highest capability name");
++	exit(1);
++    }
+     if (temp_name[0] != 'c') {
+ 	printf("WARNING: libcap needs an update (cap=%d should have a name).\n",
+ 	       cap_max_bits() - 1);
+diff --color -ru a/progs/getcap.c b/progs/getcap.c
+--- a/progs/getcap.c	2021-02-05 06:52:17.000000000 +0100
++++ b/progs/getcap.c	2021-08-27 10:21:36.547999961 +0200
+@@ -110,11 +110,11 @@
+ 
+     for (i=optind; argv[i] != NULL; i++) {
+ 	struct stat stbuf;
+-
+-	if (lstat(argv[i], &stbuf) != 0) {
+-	    fprintf(stderr, "%s (%s)\n", argv[i], strerror(errno));
++	char *arg = argv[i];
++	if (lstat(arg, &stbuf) != 0) {
++	    fprintf(stderr, "%s (%s)\n", arg, strerror(errno));
+ 	} else if (recursive) {
+-	    nftw(argv[i], do_getcap, 20, FTW_PHYS);
++	    nftw(arg, do_getcap, 20, FTW_PHYS);
+ 	} else {
+ 	    int tflag = S_ISREG(stbuf.st_mode) ? FTW_F :
+ 		(S_ISLNK(stbuf.st_mode) ? FTW_SL : FTW_NS);
+diff --color -ru a/progs/setcap.c b/progs/setcap.c
+--- a/progs/setcap.c	2021-02-05 06:52:17.000000000 +0100
++++ b/progs/setcap.c	2021-08-27 10:23:30.764835298 +0200
+@@ -166,9 +166,12 @@
+ 	    }
+ 
+ 	    cap_on_file = cap_get_file(*++argv);
+-
+ 	    if (cap_on_file == NULL) {
+ 		cap_on_file = cap_from_text("=");
++		if (cap_on_file == NULL) {
++		    perror("unable to use missing capability");
++		    exit(1);
++		}
+ 	    }
+ 
+ 	    cmp = cap_compare(cap_on_file, cap_d);
+diff --color -ru a/psx/psx.c b/psx/psx.c
+--- a/psx/psx.c	2021-08-26 09:23:55.562021081 +0200
++++ b/psx/psx.c	2021-08-27 10:24:49.997107969 +0200
+@@ -107,6 +107,10 @@
+  */
+ static void *psx_do_registration(void) {
+     registered_thread_t *node = calloc(1, sizeof(registered_thread_t));
++    if (node == NULL) {
++	perror("unable to register psx handler");
++	exit(1);
++    }
+     pthread_mutex_init(&node->mu, NULL);
+     node->thread = pthread_self();
+     pthread_setspecific(psx_action_key, node);
+diff --color -ru a/tests/libcap_launch_test.c b/tests/libcap_launch_test.c
+--- a/tests/libcap_launch_test.c	2021-02-05 06:52:17.000000000 +0100
++++ b/tests/libcap_launch_test.c	2021-08-27 10:31:31.662559385 +0200
+@@ -93,6 +93,10 @@
+ 	printf("[%d] test should %s\n", i,
+ 	       v->result ? "generate error" : "work");
+ 	cap_launch_t attr = cap_new_launcher(v->args[0], v->args, v->envp);
++	if (attr == NULL) {
++	    perror("failed to obtain launcher");
++	    exit(1);
++	}
+ 	if (v->chroot) {
+ 	    cap_launcher_set_chroot(attr, v->chroot);
+ 	}
+diff --color -ru a/tests/libcap_psx_test.c b/tests/libcap_psx_test.c
+--- a/tests/libcap_psx_test.c	2021-02-05 06:52:17.000000000 +0100
++++ b/tests/libcap_psx_test.c	2021-08-27 10:29:57.157041470 +0200
+@@ -16,6 +16,10 @@
+     usleep(1234);
+     pid_t pid = fork();
+     cap_t start = cap_get_proc();
++    if (start == NULL) {
++	perror("FAILED: unable to start");
++	exit(1);
++    }
+     if (pid == 0) {
+ 	cap_set_proc(start);
+ 	exit(0);
+@@ -27,6 +31,7 @@
+ 	exit(1);
+     }
+     cap_set_proc(start);
++    cap_free(start);
+     return NULL;
+ }
+ 
+@@ -35,6 +40,10 @@
+     printf("hello libcap and libpsx ");
+     fflush(stdout);
+     cap_t start = cap_get_proc();
++    if (start == NULL) {
++	perror("FAILED: to actually start");
++	exit(1);
++    }
+     pthread_t ignored[10];
+     for (i = 0; i < 10; i++) {
+ 	pthread_create(&ignored[i], NULL, thread_fork_exit, NULL);

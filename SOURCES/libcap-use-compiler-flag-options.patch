@@ -1,0 +1,37 @@
+From 7c13fa4e4c044941afd3b3766de71821cdc04397 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Sun, 14 Feb 2021 14:06:49 -0800
+Subject: [PATCH] Update Make.Rules for Fedora RPM build
+
+---
+ Make.Rules | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/Make.Rules b/Make.Rules
+index ded9014..537cb6c 100644
+--- a/Make.Rules
++++ b/Make.Rules
+@@ -56,10 +56,10 @@ IPATH += -fPIC -I$(KERNEL_HEADERS) -I$(topdir)/libcap/include
+ 
+ CC := $(CROSS_COMPILE)gcc
+ DEFINES := -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
+-COPTS ?= -O2
++COPTS ?= $(RPM_OPT_FLAGS)
+ CFLAGS ?= $(COPTS) $(DEFINES)
+ BUILD_CC ?= $(CC)
+-BUILD_COPTS ?= -O2
++BUILD_COPTS ?= $(RPM_OPT_FLAGS)
+ BUILD_CFLAGS ?= $(BUILD_COPTS) $(DEFINES) $(IPATH)
+ AR := $(CROSS_COMPILE)ar
+ RANLIB := $(CROSS_COMPILE)ranlib
+@@ -69,7 +69,7 @@ WARNINGS=-Wall -Wwrite-strings \
+         -Wstrict-prototypes -Wmissing-prototypes \
+         -Wnested-externs -Winline -Wshadow
+ LD=$(CC) -Wl,-x -shared
+-LDFLAGS ?= #-g
++LDFLAGS ?= $(RPM_LD_FLAGS)
+ LIBCAPLIB := -L$(topdir)/libcap -lcap
+ PSXLINKFLAGS :=  -lpthread -Wl,-wrap,pthread_create
+ LIBPSXLIB := -L$(topdir)/libcap -lpsx $(PSXLINKFLAGS)
+-- 
+2.29.2

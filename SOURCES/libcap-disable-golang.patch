@@ -1,0 +1,12 @@
+diff --color -ru a/Make.Rules b/Make.Rules
+--- a/Make.Rules	2022-01-04 16:57:52.071890314 +0100
++++ b/Make.Rules	2022-01-04 16:59:33.171786150 +0100
+@@ -104,7 +104,7 @@
+ 
+ ifeq ($(PTHREADS),yes)
+ GO ?= go
+-GOLANG ?= $(shell if [ -n "$(shell $(GO) version 2>/dev/null)" ]; then echo yes ; else echo no ; fi)
++GOLANG ?= no
+ ifeq ($(GOLANG),yes)
+ GOROOT ?= $(shell $(GO) env GOROOT)
+ GOCGO ?= $(shell if [ "$(shell $(GO) env CGO_ENABLED)" = 1 ]; then echo yes ; else echo no ; fi)
