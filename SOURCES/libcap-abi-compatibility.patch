@@ -1,0 +1,37 @@
+diff --color -ru a/libcap/cap_text.c b/libcap/cap_text.c
+--- a/libcap/cap_text.c	2021-02-05 06:52:17.000000000 +0100
++++ b/libcap/cap_text.c	2021-12-15 13:03:44.993774400 +0100
+@@ -15,7 +15,7 @@
+ #define LIBCAP_PLEASE_INCLUDE_ARRAY
+ #include "libcap.h"
+ 
+-static char const *_cap_names[__CAP_BITS] = LIBCAP_CAP_NAMES;
++extern char const *_cap_names[__CAP_BITS];
+ 
+ #include <ctype.h>
+ #include <limits.h>
+diff --color -ru a/libcap/_makenames.c b/libcap/_makenames.c
+--- a/libcap/_makenames.c	2021-02-05 06:52:17.000000000 +0100
++++ b/libcap/_makenames.c	2021-12-15 12:47:07.921408357 +0100
+@@ -66,17 +66,17 @@
+ 	   "#define __CAP_NAME_SIZE  %d\n"
+ 	   "\n"
+ 	   "#ifdef LIBCAP_PLEASE_INCLUDE_ARRAY\n"
+-	   "#define LIBCAP_CAP_NAMES { \\\n", maxcaps, maxlength+1);
++	   "  char const *_cap_names[__CAP_BITS] = {\n", maxcaps, maxlength+1);
+ 
+     for (i=0; i<maxcaps; ++i) {
+ 	if (pointers[i]) {
+-	    printf("      /* %d */\t\"%s\", \\\n", i, pointers[i]);
++	    printf("      /* %d */\t\"%s\",\n", i, pointers[i]);
+ 	} else {
+-	    printf("      /* %d */\tNULL,\t\t/* - presently unused */ \\\n", i);
++            printf("      /* %d */\tNULL,\t\t/* - presently unused */\n", i);
+ 	}
+     }
+ 
+-    printf("  }\n"
++    printf("  };\n"
+ 	   "#endif /* LIBCAP_PLEASE_INCLUDE_ARRAY */\n"
+ 	   "\n"
+ 	   "/* END OF FILE */\n");

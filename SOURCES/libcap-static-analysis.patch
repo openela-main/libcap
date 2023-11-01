@@ -1,0 +1,494 @@
+diff --color -ru a/libcap/cap_proc.c b/libcap/cap_proc.c
+--- a/libcap/cap_proc.c	2022-01-28 12:42:39.726331628 +0100
++++ b/libcap/cap_proc.c	2022-01-28 12:44:05.007936110 +0100
+@@ -712,6 +712,10 @@
+     cap_value_t c;
+     int raising = 0;
+ 
++    if (temp == NULL) {
++	return -1;
++    }
++
+     for (i = 0; i < _LIBCAP_CAPABILITY_U32S; i++) {
+ 	__u32 newI = iab->i[i];
+ 	__u32 oldIP = temp->u[i].flat[CAP_INHERITABLE] |
+diff --color -ru a/libcap/cap_text.c b/libcap/cap_text.c
+--- a/libcap/cap_text.c	2022-01-28 12:42:39.725331609 +0100
++++ b/libcap/cap_text.c	2022-01-28 12:44:05.008936129 +0100
+@@ -160,6 +160,7 @@
+ 	cap_blks = _LINUX_CAPABILITY_U32S_3;
+ 	break;
+     default:
++	cap_free(res);
+ 	errno = EINVAL;
+ 	return NULL;
+     }
+@@ -398,6 +399,9 @@
+ 	for (n = 0; n < cmb; n++) {
+ 	    if (getstateflags(caps, n) == t) {
+ 	        char *this_cap_name = cap_to_name(n);
++		if (this_cap_name == NULL) {
++		    return NULL;
++		}
+ 	        if ((strlen(this_cap_name) + (p - buf)) > CAP_TEXT_SIZE) {
+ 		    cap_free(this_cap_name);
+ 		    errno = ERANGE;
+@@ -450,6 +454,9 @@
+ 	for (n = cmb; n < __CAP_MAXBITS; n++) {
+ 	    if (getstateflags(caps, n) == t) {
+ 		char *this_cap_name = cap_to_name(n);
++		if (this_cap_name == NULL) {
++		    return NULL;
++		}
+ 	        if ((strlen(this_cap_name) + (p - buf)) > CAP_TEXT_SIZE) {
+ 		    cap_free(this_cap_name);
+ 		    errno = ERANGE;
+@@ -549,6 +556,9 @@
+ cap_iab_t cap_iab_from_text(const char *text)
+ {
+     cap_iab_t iab = cap_iab_init();
++    if (iab == NULL) {
++	return iab;
++    }
+     if (text != NULL) {
+ 	unsigned flags;
+ 	for (flags = 0; *text; text++) {
+diff --color -ru a/libcap/_makenames.c b/libcap/_makenames.c
+--- a/libcap/_makenames.c	2022-01-28 12:42:39.725331609 +0100
++++ b/libcap/_makenames.c	2022-01-28 13:07:28.700817691 +0100
+@@ -45,10 +45,14 @@
+ 	if (maxcaps <= list[i].index) {
+ 	    maxcaps = list[i].index + 1;
+ 	}
+-        if (list[i].index >= pointers_avail) {
++        if (pointers == NULL || list[i].index >= pointers_avail) {
+ 	    int was = pointers_avail * sizeof(char *);
+ 	    pointers_avail = 2 * list[i].index + 1;
+ 	    pointers = recalloc(pointers, was, pointers_avail * sizeof(char *));
++	    if (pointers == NULL) {
++		perror("unable to continue");
++		exit(1);
++	    }
+         }
+ 	pointers[list[i].index] = list[i].name;
+ 	int n = strlen(list[i].name);
+diff --color -ru a/pam_cap/pam_cap.c b/pam_cap/pam_cap.c
+--- a/pam_cap/pam_cap.c	2022-01-28 12:42:39.726331628 +0100
++++ b/pam_cap/pam_cap.c	2022-01-28 12:44:05.009936148 +0100
+@@ -64,6 +64,9 @@
+     }
+ 
+     *groups = calloc(ngrps, sizeof(char *));
++    if (*groups == NULL) {
++	return -1;
++    }
+     int g_n = 0, i;
+     for (i = 0; i < ngrps; i++) {
+ 	const struct group *g = getgrgid(grps[i]);
+@@ -249,7 +252,7 @@
+ 	if (!cap_set_proc(cap_s)) {
+ 	    ok = 1;
+ 	}
+-	goto cleanup_cap_s;
++	goto cleanup_conf;
+     }
+ 
+     iab = cap_iab_from_text(conf_caps);
+@@ -278,10 +281,9 @@
+     _pam_drop(conf_caps);
+ 
+ cleanup_cap_s:
+-    if (cap_s) {
+-	cap_free(cap_s);
+-	cap_s = NULL;
+-    }
++    cap_free(cap_s);
++    cap_s = NULL;
++
+     return ok;
+ }
+ 
+diff --color -ru a/progs/capsh.c b/progs/capsh.c
+--- a/progs/capsh.c	2021-02-05 06:52:17.000000000 +0100
++++ b/progs/capsh.c	2022-01-28 13:06:15.803465885 +0100
+@@ -34,6 +34,35 @@
+ 
+ #define MAX_GROUPS       100   /* max number of supplementary groups for user */
+ 
++/* parse a non-negative integer with some error handling */
++static unsigned long nonneg_uint(const char *text, const char *prefix, int *ok)
++{
++    char *remains;
++    unsigned long value;
++    ssize_t len = strlen(text);
++
++    if (len == 0 || *text == '-') {
++	goto fail;
++    }
++    value = strtoul(text, &remains, 0);
++    if (*remains) {
++	goto fail;
++    }
++    if (ok != NULL) {
++	*ok = 1;
++    }
++    return value;
++
++fail:
++    if (ok == NULL) {
++	fprintf(stderr, "%s: want non-negative integer, got \"%s\"\n",
++		prefix, text);
++	exit(1);
++    }
++    *ok = 0;
++    return 0;
++}
++
+ static char *binary(unsigned long value)
+ {
+     static char string[8*sizeof(unsigned long) + 1];
+@@ -100,7 +129,16 @@
+     display_prctl_set("Bounding", cap_get_bound);
+     display_prctl_set("Ambient", cap_get_ambient);
+     iab = cap_iab_get_proc();
++    if (iab == NULL) {
++	perror("failed to get IAB for process");
++	exit(1);
++    }
+     text = cap_iab_to_text(iab);
++    if (text == NULL) {
++	perror("failed to obtain text for IAB");
++	cap_free(iab);
++	exit(1);
++    }
+     printf("Current IAB: %s\n", text);
+     cap_free(text);
+     cap_free(iab);
+@@ -336,8 +374,8 @@
+  */
+ static char *find_self(const char *arg0)
+ {
+-    int i;
+-    char *parts, *dir, *scratch;
++    int i, status=1;
++    char *p = NULL, *parts, *dir, *scratch;
+     const char *path;
+ 
+     for (i = strlen(arg0)-1; i >= 0 && arg0[i] != '/'; i--);
+@@ -352,21 +390,45 @@
+     }
+ 
+     parts = strdup(path);
++    if (parts == NULL) {
++	fprintf(stderr, "insufficient memory for parts of path\n");
++	exit(1);
++    }
++
+     scratch = malloc(2+strlen(path)+strlen(arg0));
+-    if (parts == NULL || scratch == NULL) {
++    if (scratch == NULL) {
+         fprintf(stderr, "insufficient memory for path building\n");
+-	exit(1);
++	goto free_parts;
+     }
+ 
+-    for (i=0; (dir = strtok(parts, ":")); parts = NULL) {
++    for (p = parts; (dir = strtok(p, ":")); p = NULL) {
+         sprintf(scratch, "%s/%s", dir, arg0);
+ 	if (access(scratch, X_OK) == 0) {
+-            return scratch;
++	    status = 0;
++	    break;
+ 	}
+     }
++    if (status) {
++	fprintf(stderr, "unable to find executable '%s' in PATH\n", arg0);
++	free(scratch);
++    }
+ 
+-    fprintf(stderr, "unable to find executable '%s' in PATH\n", arg0);
+-    exit(1);
++free_parts:
++    free(parts);
++    if (status) {
++	exit(status);
++    }
++    return scratch;
++}
++
++static long safe_sysconf(int name)
++{
++    long ans = sysconf(name);
++    if (ans <= 0) {
++	fprintf(stderr, "sysconf(%d) returned a non-positive number: %ld\n", name, ans);
++	exit(1);
++    }
++    return ans;
+ }
+ 
+ int main(int argc, char *argv[], char *envp[])
+@@ -378,6 +440,10 @@
+     child = 0;
+ 
+     char *temp_name = cap_to_name(cap_max_bits() - 1);
++    if (temp_name == NULL) {
++	perror("obtaining highest capability name");
++	exit(1);
++    }
+     if (temp_name[0] != 'c') {
+ 	printf("WARNING: libcap needs an update (cap=%d should have a name).\n",
+ 	       cap_max_bits() - 1);
+@@ -573,7 +639,7 @@
+ 	    unsigned value;
+ 	    int set;
+ 
+-	    value = strtoul(argv[i]+7, NULL, 0);
++	    value = nonneg_uint(argv[i]+7, "invalid --keep value", NULL);
+ 	    set = prctl(PR_SET_KEEPCAPS, value);
+ 	    if (set < 0) {
+ 		fprintf(stderr, "prctl(PR_SET_KEEPCAPS, %u) failed: %s\n",
+@@ -617,7 +683,9 @@
+ 	     * Given we are now in a new directory tree, its good practice
+ 	     * to start off in a sane location
+ 	     */
+-	    status = chdir("/");
++	    if (status == 0) {
++		status = chdir("/");
++	    }
+ 
+ 	    cap_free(orig);
+ 
+@@ -628,7 +696,7 @@
+ 	} else if (!strncmp("--secbits=", argv[i], 10)) {
+ 	    unsigned value;
+ 	    int status;
+-	    value = strtoul(argv[i]+10, NULL, 0);
++	    value = nonneg_uint(argv[i]+10, "invalid --secbits value", NULL);
+ 	    status = cap_set_secbits(value);
+ 	    if (status < 0) {
+ 		fprintf(stderr, "failed to set securebits to 0%o/0x%x\n",
+@@ -641,7 +709,7 @@
+ 		fprintf(stderr, "already forked\n");
+ 		exit(1);
+ 	    }
+-	    value = strtoul(argv[i]+10, NULL, 0);
++	    value = nonneg_uint(argv[i]+10, "invalid --forkfor value", NULL);
+ 	    if (value == 0) {
+ 		goto usage;
+ 	    }
+@@ -657,7 +725,8 @@
+ 	    pid_t result;
+ 	    unsigned value;
+ 
+-	    value = strtoul(argv[i]+9, NULL, 0);
++	    value = nonneg_uint(argv[i]+9, "invalid --killit signo value",
++				NULL);
+ 	    if (!child) {
+ 		fprintf(stderr, "no forked process to kill\n");
+ 		exit(1);
+@@ -683,7 +752,7 @@
+ 	    unsigned value;
+ 	    int status;
+ 
+-	    value = strtoul(argv[i]+6, NULL, 0);
++	    value = nonneg_uint(argv[i]+6, "invalid --uid value", NULL);
+ 	    status = setuid(value);
+ 	    if (status < 0) {
+ 		fprintf(stderr, "Failed to set uid=%u: %s\n",
+@@ -694,7 +763,7 @@
+ 	    unsigned value;
+ 	    int status;
+ 
+-	    value = strtoul(argv[i]+10, NULL, 0);
++	    value = nonneg_uint(argv[i]+10, "invalid --cap-uid value", NULL);
+ 	    status = cap_setuid(value);
+ 	    if (status < 0) {
+ 		fprintf(stderr, "Failed to cap_setuid(%u): %s\n",
+@@ -705,7 +774,7 @@
+ 	    unsigned value;
+ 	    int status;
+ 
+-	    value = strtoul(argv[i]+6, NULL, 0);
++	    value = nonneg_uint(argv[i]+6, "invalid --gid value", NULL);
+ 	    status = setgid(value);
+ 	    if (status < 0) {
+ 		fprintf(stderr, "Failed to set gid=%u: %s\n",
+@@ -718,14 +787,14 @@
+ 	  gid_t *group_list;
+ 	  int g_count;
+ 
+-	  length = sysconf(_SC_GETGR_R_SIZE_MAX);
++	  length = safe_sysconf(_SC_GETGR_R_SIZE_MAX);
+ 	  buf = calloc(1, length);
+ 	  if (NULL == buf) {
+ 	    fprintf(stderr, "No memory for [%s] operation\n", argv[i]);
+ 	    exit(1);
+ 	  }
+ 
+-	  max_groups = sysconf(_SC_NGROUPS_MAX);
++	  max_groups = safe_sysconf(_SC_NGROUPS_MAX);
+ 	  group_list = calloc(max_groups, sizeof(gid_t));
+ 	  if (NULL == group_list) {
+ 	    fprintf(stderr, "No memory for gid list\n");
+@@ -741,8 +810,7 @@
+ 	    }
+ 	    if (!isdigit(*ptr)) {
+ 	      struct group *g, grp;
+-	      getgrnam_r(ptr, &grp, buf, length, &g);
+-	      if (NULL == g) {
++	      if (getgrnam_r(ptr, &grp, buf, length, &g) || NULL == g) {
+ 		fprintf(stderr, "Failed to identify gid for group [%s]\n", ptr);
+ 		exit(1);
+ 	      }
+@@ -835,6 +903,7 @@
+ 	    argv[argc] = NULL;
+ 	    execve(argv[i], argv+i, envp);
+ 	    fprintf(stderr, "execve '%s' failed!\n", argv[i]);
++	    free(argv[i]);
+ 	    exit(1);
+ 	} else if (!strncmp("--shell=", argv[i], 8)) {
+ 	    shell = argv[i]+8;
+@@ -885,7 +954,7 @@
+ 	} else if (!strncmp("--is-uid=", argv[i], 9)) {
+ 	    unsigned value;
+ 	    uid_t uid;
+-	    value = strtoul(argv[i]+9, NULL, 0);
++	    value = nonneg_uint(argv[i]+9, "invalid --is-uid value", NULL);
+ 	    uid = getuid();
+ 	    if (uid != value) {
+ 		fprintf(stderr, "uid: got=%d, want=%d\n", uid, value);
+@@ -894,7 +963,7 @@
+ 	} else if (!strncmp("--is-gid=", argv[i], 9)) {
+ 	    unsigned value;
+ 	    gid_t gid;
+-	    value = strtoul(argv[i]+9, NULL, 0);
++	    value = nonneg_uint(argv[i]+9, "invalid --is-gid value", NULL);
+ 	    gid = getgid();
+ 	    if (gid != value) {
+ 		fprintf(stderr, "gid: got=%d, want=%d\n", gid, value);
+diff --color -ru a/progs/getcap.c b/progs/getcap.c
+--- a/progs/getcap.c	2021-02-05 06:52:17.000000000 +0100
++++ b/progs/getcap.c	2022-01-28 12:44:05.009936148 +0100
+@@ -110,11 +110,11 @@
+ 
+     for (i=optind; argv[i] != NULL; i++) {
+ 	struct stat stbuf;
+-
+-	if (lstat(argv[i], &stbuf) != 0) {
+-	    fprintf(stderr, "%s (%s)\n", argv[i], strerror(errno));
++	char *arg = argv[i];
++	if (lstat(arg, &stbuf) != 0) {
++	    fprintf(stderr, "%s (%s)\n", arg, strerror(errno));
+ 	} else if (recursive) {
+-	    nftw(argv[i], do_getcap, 20, FTW_PHYS);
++	    nftw(arg, do_getcap, 20, FTW_PHYS);
+ 	} else {
+ 	    int tflag = S_ISREG(stbuf.st_mode) ? FTW_F :
+ 		(S_ISLNK(stbuf.st_mode) ? FTW_SL : FTW_NS);
+diff --color -ru a/progs/setcap.c b/progs/setcap.c
+--- a/progs/setcap.c	2021-02-05 06:52:17.000000000 +0100
++++ b/progs/setcap.c	2022-01-28 12:44:05.009936148 +0100
+@@ -166,9 +166,12 @@
+ 	    }
+ 
+ 	    cap_on_file = cap_get_file(*++argv);
+-
+ 	    if (cap_on_file == NULL) {
+ 		cap_on_file = cap_from_text("=");
++		if (cap_on_file == NULL) {
++		    perror("unable to use missing capability");
++		    exit(1);
++		}
+ 	    }
+ 
+ 	    cmp = cap_compare(cap_on_file, cap_d);
+diff --color -ru a/psx/psx.c b/psx/psx.c
+--- a/psx/psx.c	2021-02-05 06:52:17.000000000 +0100
++++ b/psx/psx.c	2022-01-28 12:44:05.009936148 +0100
+@@ -107,6 +107,10 @@
+  */
+ static void *psx_do_registration(void) {
+     registered_thread_t *node = calloc(1, sizeof(registered_thread_t));
++    if (node == NULL) {
++	perror("unable to register psx handler");
++	exit(1);
++    }
+     pthread_mutex_init(&node->mu, NULL);
+     node->thread = pthread_self();
+     pthread_setspecific(psx_action_key, node);
+@@ -454,6 +458,10 @@
+ int __wrap_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+ 			  void *(*start_routine) (void *), void *arg) {
+     psx_starter_t *starter = calloc(1, sizeof(psx_starter_t));
++    if (starter == NULL) {
++	perror("failed at thread creation");
++	exit(1);
++    }
+     starter->fn = start_routine;
+     starter->arg = arg;
+     /*
+diff --color -ru a/tests/libcap_launch_test.c b/tests/libcap_launch_test.c
+--- a/tests/libcap_launch_test.c	2021-02-05 06:52:17.000000000 +0100
++++ b/tests/libcap_launch_test.c	2022-01-28 12:44:05.010936167 +0100
+@@ -93,6 +93,10 @@
+ 	printf("[%d] test should %s\n", i,
+ 	       v->result ? "generate error" : "work");
+ 	cap_launch_t attr = cap_new_launcher(v->args[0], v->args, v->envp);
++	if (attr == NULL) {
++	    perror("failed to obtain launcher");
++	    exit(1);
++	}
+ 	if (v->chroot) {
+ 	    cap_launcher_set_chroot(attr, v->chroot);
+ 	}
+diff --color -ru a/tests/libcap_psx_test.c b/tests/libcap_psx_test.c
+--- a/tests/libcap_psx_test.c	2021-02-05 06:52:17.000000000 +0100
++++ b/tests/libcap_psx_test.c	2022-01-28 12:55:55.887807887 +0100
+@@ -16,8 +16,15 @@
+     usleep(1234);
+     pid_t pid = fork();
+     cap_t start = cap_get_proc();
++    if (start == NULL) {
++	perror("FAILED: unable to start");
++	exit(1);
++    }
+     if (pid == 0) {
+-	cap_set_proc(start);
++	if (cap_set_proc(start)) {
++	    perror("setting empty caps failed");
++	    exit(1);
++	}
+ 	exit(0);
+     }
+     int res;
+@@ -27,6 +34,7 @@
+ 	exit(1);
+     }
+     cap_set_proc(start);
++    cap_free(start);
+     return NULL;
+ }
+ 
+@@ -35,6 +43,10 @@
+     printf("hello libcap and libpsx ");
+     fflush(stdout);
+     cap_t start = cap_get_proc();
++    if (start == NULL) {
++	perror("FAILED: to actually start");
++	exit(1);
++    }
+     pthread_t ignored[10];
+     for (i = 0; i < 10; i++) {
+ 	pthread_create(&ignored[i], NULL, thread_fork_exit, NULL);
+@@ -42,7 +54,10 @@
+     for (i = 0; i < 10; i++) {
+ 	printf(".");     /* because of fork, this may print double */
+ 	fflush(stdout);  /* try to limit the above effect */
+-	cap_set_proc(start);
++	if (cap_set_proc(start)) {
++	    perror("failed to set proc");
++	    exit(1);
++	}
+ 	usleep(1000);
+     }
+     printf(" PASSED\n");
