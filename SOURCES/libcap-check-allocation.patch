@@ -1,0 +1,54 @@
+--- a/libcap/cap_alloc.c	2021-02-05 06:52:17.000000000 +0100
++++ b/libcap/cap_alloc.c	2022-05-17 20:06:53.570560396 +0200
+@@ -123,6 +123,10 @@
+ 
+ cap_iab_t cap_iab_init(void) {
+     __u32 *base = calloc(1, sizeof(__u32) + sizeof(struct cap_iab_s));
++    if (base == NULL) {
++	_cap_debug("out of memory");
++	return NULL;
++    }
+     *(base++) = CAP_IAB_MAGIC;
+     return (cap_iab_t) base;
+ }
+@@ -138,6 +142,10 @@
+ 			      const char * const *envp)
+ {
+     __u32 *data = calloc(1, sizeof(__u32) + sizeof(struct cap_launch_s));
++    if (data == NULL) {
++	_cap_debug("out of memory");
++	return NULL;
++    }
+     *(data++) = CAP_LAUNCH_MAGIC;
+     struct cap_launch_s *attr = (struct cap_launch_s *) data;
+     attr->arg0 = arg0;
+--- a/libcap/cap_proc.c	2022-05-17 20:07:36.301803359 +0200
++++ b/libcap/cap_proc.c	2022-05-17 20:06:59.238592623 +0200
+@@ -677,9 +677,25 @@
+  */
+ cap_iab_t cap_iab_get_proc(void)
+ {
+-    cap_iab_t iab = cap_iab_init();
+-    cap_t current = cap_get_proc();
++    cap_iab_t iab;
++    cap_t current;
++
++    iab = cap_iab_init();
++    if (iab == NULL) {
++	_cap_debug("no memory for IAB tuple");
++	return NULL;
++    }
++
++    current = cap_get_proc();
++    if (current == NULL) {
++	_cap_debug("no memory for cap_t");
++	cap_free(iab);
++	return NULL;
++    }
++
+     cap_iab_fill(iab, CAP_IAB_INH, current, CAP_INHERITABLE);
++    cap_free(current);
++
+     cap_value_t c;
+     for (c = cap_max_bits(); c; ) {
+ 	--c;
