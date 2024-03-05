@@ -1,6 +1,6 @@
 Name: libcap
 Version: 2.48
-Release: 5%{?dist}
+Release: 6%{?dist}
 Summary: Library for getting and setting POSIX.1e capabilities
 URL: https://sites.google.com/site/fullycapable/
 License: BSD or GPLv2
@@ -93,11 +93,15 @@ chmod +x %{buildroot}/%{_libdir}/*.so.*
 %{_libdir}/pkgconfig/libpsx.pc
 
 %changelog
+* Wed Dec 13 2023 Anderson Toshiyuki Sasaki <ansasaki@redhat.com> - 2.48-6
+- Bump release version to restore upgrade path
+  Resolves: RHEL-19362
+
 * Mon Jun 26 2023 Anderson Toshiyuki Sasaki <ansasaki@redhat.com> - 2.48-5
 - Fix integer overflow in _libcap_strdup() (CVE-2023-2603)
-  Resolves: rhbz#2210636
+  Resolves: rhbz#2210637
 - Correctly check pthread_create() return value to avoid memory leak (CVE-2023-2602)
-  Resolves: rhbz#2222197
+  Resolves: rhbz#2210644
 
 * Tue May 17 2022 Anderson Toshiyuki Sasaki <ansasaki@redhat.com> - 2.48-4
 - check for successful memory allocation
