@@ -1,0 +1,26 @@
+From 70783bddc65628a1afc3dd2f8b4b3f03fc839b8e Mon Sep 17 00:00:00 2001
+From: Carlos Rodriguez-Fernandez <carlosrodrifernandez@gmail.com>
+Date: Fri, 5 Apr 2024 16:37:30 -0700
+Subject: [PATCH] doc: document the use of `*` to refer to all users
+
+Signed-off-by: Carlos Rodriguez-Fernandez <carlosrodrifernandez@gmail.com>
+---
+ doc/capability.conf.5 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/capability.conf.5 b/doc/capability.conf.5
+index 10ff63b..15535f4 100644
+--- a/doc/capability.conf.5
++++ b/doc/capability.conf.5
+@@ -16,7 +16,7 @@ Where \fB<IAB>\fR refers to the text format for an inheritable IAB capability tu
+ .P
+ The reserved word \fBall\fR does \fInot\fR grant \fIall the inheritable capabilities\fR, but acts as a simple \fIpass\-through\fR for any prevailing IAB tuple capabilities\. The reserved word \fBnone\fR refers to an empty \fIInheritable\fR capability set (and by extension an empty \fIAmbient\fR vector)\.
+ .P
+-Here \fB<WHO>\fR refers to the space separated PAM username values that will be granted the specified \fIIAB\fR tuple\. A name prefixed with the character \fB@\fR refers to the locally defined \fB/etc/group\fR \fIetc\fR users listed under that group name\.
++Here \fB<WHO>\fR refers to the space separated PAM username values that will be granted the specified \fIIAB\fR tuple\. A name prefixed with the character \fB@\fR refers to the locally defined \fB/etc/group\fR \fIetc\fR users listed under that group name\. An asterisk "\fB*\fR" can be used to denote all users\.
+ .P
+ The parsing of the file chooses the first line that applies to the authenticating user, and attempts to apply that and only that\.
+ .P
+-- 
+2.44.0
+
