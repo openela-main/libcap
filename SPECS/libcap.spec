@@ -1,6 +1,6 @@
 Name: libcap
 Version: 2.48
-Release: 9%{?dist}
+Release: 10%{?dist}
 Summary: Library for getting and setting POSIX.1e capabilities
 URL: https://sites.google.com/site/fullycapable/
 License: BSD or GPLv2
@@ -14,6 +14,7 @@ Patch4: libcap-disable-golang.patch
 Patch5: libcap-fix-ambient-caps.patch
 Patch6: libcap-cve-2023-2603.patch
 Patch7: libcap-cve-2023-2602.patch
+Patch8: libcap-fix-typo-cap-from-text.patch
 
 BuildRequires: libattr-devel pam-devel perl-interpreter gcc
 BuildRequires: make
@@ -90,6 +91,10 @@ chmod +x %{buildroot}/%{_libdir}/*.so.*
 
 
 %changelog
+* Thu Jul 03 2025 Anderson Toshiyuki Sasaki <ansasaki@redhat.com> - 2.48-10
+- Fix typos in the cap_from_text.3 man page
+  Resolves: RHEL-1838
+
 * Wed Jul 12 2023 Anderson Toshiyuki Sasaki <ansasaki@redhat.com> - 2.48-9
 - Fix integer overflow in _libcap_strdup() (CVE-2023-2603)
   Resolves: rhbz#2210638

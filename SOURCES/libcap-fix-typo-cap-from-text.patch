@@ -1,0 +1,47 @@
+From 60ff008d95584cc18701e98ed3cc4fa3d6cef9cb Mon Sep 17 00:00:00 2001
+From: "Andrew G. Morgan" <morgan@kernel.org>
+Date: Thu, 22 Sep 2022 06:54:37 -0700
+Subject: Fix typos in the cap_from_text.3 man page.
+
+This addresses this bug reported by Paulo Andrade (thanks!):
+
+  https://bugzilla.kernel.org/show_bug.cgi?id=216514
+
+Signed-off-by: Andrew G. Morgan <morgan@kernel.org>
+---
+ doc/cap_from_text.3 | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/cap_from_text.3 b/doc/cap_from_text.3
+index 9370e26..a0c9282 100644
+--- a/doc/cap_from_text.3
++++ b/doc/cap_from_text.3
+@@ -10,7 +10,7 @@ state textual representation translation
+ #include <sys/capability.h>
+ 
+ cap_t cap_from_text(const char* buf_p );
+-char *cap_to_text(cap_t caps, ssize_t * length_p);
++char *cap_to_text(cap_t caps, ssize_t * len_p);
+ int cap_from_name(const char* name , cap_value_t* cap_p);
+ char *cap_to_name(cap_value_t cap);
+ .fi
+@@ -46,7 +46,7 @@ is both set and cleared within a single clause.
+ .PP
+ .BR cap_to_text ()
+ converts the capability state in working storage identified by
+-.I cap_p
++.I caps
+ into a nul-terminated human-readable string.  This function allocates
+ any memory necessary to contain the string, and returns a pointer to
+ the string.  If the pointer
+@@ -56,7 +56,7 @@ the function shall also return the full length of the string (not including
+ the nul terminator) in the location pointed to by
+ .IR len_p .
+ The capability state in working storage, identified by
+-.IR cap_p ,
++.IR caps ,
+ is completely represented in the character string.
+ When the capability state in working storage is no longer required,
+ the caller should free any releasable memory by calling
+-- 
+cgit 1.2.3-korg
