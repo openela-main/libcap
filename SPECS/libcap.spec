@@ -1,6 +1,6 @@
 Name: libcap
 Version: 2.48
-Release: 6%{?dist}
+Release: 6%{?dist}.1
 Summary: Library for getting and setting POSIX.1e capabilities
 URL: https://sites.google.com/site/fullycapable/
 License: BSD or GPLv2
@@ -15,6 +15,9 @@ Patch4: %{name}-fix-prctl-usage.patch
 Patch5: %{name}-check-allocation.patch
 Patch6: %{name}-cve-2023-2603.patch
 Patch7: %{name}-cve-2023-2602.patch
+# RHEL-169304 - CVE-2026-4878: TOCTOU race condition in cap_set_file()
+# Backport https://git.kernel.org/pub/scm/libs/libcap/libcap.git/commit/?id=286ace1259992bd0c5d9016715833f2e148ac596
+Patch8: libcap-cve-2026-4878.patch
 
 BuildRequires: libattr-devel pam-devel perl-interpreter
 BuildRequires: make
@@ -93,9 +96,13 @@ chmod +x %{buildroot}/%{_libdir}/*.so.*
 %{_libdir}/pkgconfig/libpsx.pc
 
 %changelog
+* Tue Apr 21 2026 Anderson Toshiyuki Sasaki <ansasaki@redhat.com> - 2.48-6.1
+- Fix TOCTOU race condition in cap_set_file() (CVE-2026-4878)
+  Resolves: RHEL-169304
+
 * Wed Dec 13 2023 Anderson Toshiyuki Sasaki <ansasaki@redhat.com> - 2.48-6
 - Bump release version to restore upgrade path
-  Resolves: RHEL-19362
+  Resolves: RHEL-19359
 
 * Mon Jun 26 2023 Anderson Toshiyuki Sasaki <ansasaki@redhat.com> - 2.48-5
 - Fix integer overflow in _libcap_strdup() (CVE-2023-2603)
