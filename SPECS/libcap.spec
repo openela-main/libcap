@@ -10,7 +10,7 @@ Source1: https://mirrors.edge.kernel.org/pub/linux/libs/security/linux-privs/lib
 Source2: https://git.kernel.org/pub/scm/docs/kernel/pgpkeys.git/plain/keys/29EE848AE2CCF3F4.asc
 Patch0: 0001-doc-document-pam_cap-and-its-conf.patch
 Patch1: 0002-doc-document-the-use-of-to-refer-to-all-users.patch
-# RHEL-169301 - CVE-2026-4878: TOCTOU race condition in cap_set_file()
+# RHEL-169302 - CVE-2026-4878: TOCTOU race condition in cap_set_file()
 # Backport https://git.kernel.org/pub/scm/libs/libcap/libcap.git/commit/?id=286ace1259992bd0c5d9016715833f2e148ac596
 Patch2: 0003-fix-cve-2026-4878-toctou-cap-set-file.patch
 
@@ -112,7 +112,7 @@ chmod +x %{buildroot}/%{_libdir}/*.so.*
 %changelog
 * Tue Apr 21 2026 Anderson Toshiyuki Sasaki <ansasaki@redhat.com> - 2.69-7.1
 - Fix TOCTOU race condition in cap_set_file() (CVE-2026-4878)
-  Resolves: RHEL-169301
+  Resolves: RHEL-169302
 
 * Tue Oct 29 2024 Troy Dawson <tdawson@redhat.com> - 2.69-7
 - Bump release for October 2024 mass rebuild:
