@@ -15,7 +15,7 @@ Patch5: libcap-fix-ambient-caps.patch
 Patch6: libcap-cve-2023-2603.patch
 Patch7: libcap-cve-2023-2602.patch
 Patch8: libcap-fix-typo-cap-from-text.patch
-# RHEL-169311 - CVE-2026-4878: TOCTOU race condition in cap_set_file()
+# RHEL-169312 - CVE-2026-4878: TOCTOU race condition in cap_set_file()
 # Backport https://git.kernel.org/pub/scm/libs/libcap/libcap.git/commit/?id=286ace1259992bd0c5d9016715833f2e148ac596
 Patch9: libcap-cve-2026-4878.patch
 
@@ -96,7 +96,7 @@ chmod +x %{buildroot}/%{_libdir}/*.so.*
 %changelog
 * Tue Apr 21 2026 Anderson Toshiyuki Sasaki <ansasaki@redhat.com> - 2.48-10.1
 - Fix TOCTOU race condition in cap_set_file() (CVE-2026-4878)
-  Resolves: RHEL-169311
+  Resolves: RHEL-169312
 
 * Thu Jul 03 2025 Anderson Toshiyuki Sasaki <ansasaki@redhat.com> - 2.48-10
 - Fix typos in the cap_from_text.3 man page
